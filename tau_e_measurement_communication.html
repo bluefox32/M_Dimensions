@@ -1,0 +1,159 @@
+
+<h2 class="sr-only">τ=e の空間状態測定・通信精度・自己参照条件の統合インタラクティブ図</h2>
+<style>
+.metric{background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:8px 12px;}
+.metric .lbl{font-size:11px;color:var(--color-text-secondary);}
+.metric .val{font-size:17px;font-weight:500;color:var(--color-text-primary);margin-top:2px;}
+.eq-box{font-family:var(--font-mono);font-size:11px;background:var(--color-background-secondary);border-radius:6px;padding:6px 10px;margin:3px 0;color:var(--color-text-primary);}
+.eq-hi{border-left:3px solid var(--color-border-success);}
+.eq-warn{border-left:3px solid var(--color-border-warning);}
+.row-badge{display:flex;gap:8px;align-items:center;margin:3px 0;font-size:11px;}
+.badge{font-size:10px;padding:2px 6px;border-radius:4px;font-weight:500;flex-shrink:0;}
+.b-ok{background:var(--color-background-success);color:var(--color-text-success);}
+.b-warn{background:var(--color-background-warning);color:var(--color-text-warning);}
+</style>
+
+<div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-bottom:12px">
+  <div class="metric"><div class="lbl">τ の値</div><div class="val" id="m-tau">—</div></div>
+  <div class="metric"><div class="lbl">ν_eff = 1/|ln τ|</div><div class="val" id="m-nu">—</div></div>
+  <div class="metric"><div class="lbl">C (古典) bit/use</div><div class="val" id="m-cc">—</div></div>
+  <div class="metric"><div class="lbl">S(ρ) 量子 bit</div><div class="val" id="m-sq">—</div></div>
+</div>
+
+<div style="display:flex;gap:12px;align-items:center;margin-bottom:8px;font-size:13px;color:var(--color-text-secondary)">
+  <label>τ</label>
+  <input type="range" id="tau-slider" min="0.1" max="4.0" step="0.01" value="2.718" style="flex:1">
+  <span id="tau-val" style="font-weight:500;min-width:42px;text-align:right;color:var(--color-text-primary)">e</span>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+  <div>
+    <div style="font-size:11px;color:var(--color-text-secondary);margin-bottom:4px">通信精度 vs τ</div>
+    <div style="position:relative;height:160px"><canvas id="cap-chart" role="img" aria-label="チャネル容量とτの関係"></canvas></div>
+  </div>
+  <div>
+    <div style="font-size:11px;color:var(--color-text-secondary);margin-bottom:4px">τ^e = e^τ の等式チェック</div>
+    <div style="position:relative;height:160px"><canvas id="pow-chart" role="img" aria-label="τ^eとe^τの比較"></canvas></div>
+  </div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+  <div style="background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:10px">
+    <div style="font-size:12px;font-weight:500;margin-bottom:6px;color:var(--color-text-primary)">τ=e での等式チェーン</div>
+    <div id="eq-chain"></div>
+  </div>
+  <div style="background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:10px">
+    <div style="font-size:12px;font-weight:500;margin-bottom:6px;color:var(--color-text-primary)">現在の τ での測定体制</div>
+    <div id="regime-info"></div>
+  </div>
+</div>
+
+<div style="font-size:11px;color:var(--color-text-secondary);margin-bottom:4px">f(τ)=ln(τ)/τ — 全理論の母関数（τ=e で最大値 1/e）</div>
+<div style="position:relative;height:120px"><canvas id="f-chart" role="img" aria-label="f(t)=ln(t)/tのグラフ"></canvas></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+const E=Math.E, PI=Math.PI, LN2=Math.LN2;
+function nuEff(t){const l=Math.abs(Math.log(t));return l<1e-10?1e6:1/l;}
+function Ccl(t){const snr=1/(t*t);return 0.5*Math.log2(1+snr);}
+function Sq(t){const th=Math.atan(t),p=Math.cos(th/2)**2;if(p<=0||p>=1)return 0;return -p*Math.log2(p)-(1-p)*Math.log2(1-p);}
+function fval(t){return t>0?Math.log(t)/t:-Infinity;}
+function isClose(a,b){return Math.abs(a-b)<Math.abs(b)*1e-4+1e-6;}
+
+const tauArr=Array.from({length:200},(_,i)=>0.1+i*0.02);
+
+const capChart=new Chart(document.getElementById('cap-chart'),{
+  type:'line',
+  data:{labels:tauArr.map(t=>t.toFixed(2)),datasets:[
+    {label:'C classical',data:tauArr.map(t=>+Ccl(t).toFixed(4)),borderColor:'#378ADD',borderWidth:2,pointRadius:0,tension:0.3},
+    {label:'S(ρ) quantum',data:tauArr.map(t=>+Sq(t).toFixed(4)),borderColor:'#1D9E75',borderWidth:2,pointRadius:0,tension:0.3,borderDash:[4,2]},
+    {label:'τ (current)',data:[{x:E,y:Ccl(E)}],type:'scatter',borderColor:'#D85A30',backgroundColor:'#D85A30',pointRadius:8,pointStyle:'circle',showLine:false,yAxisID:'y'},
+  ]},
+  options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:true,position:'top',labels:{boxWidth:10,font:{size:9},color:'var(--color-text-secondary)'}}},
+    scales:{
+      x:{ticks:{color:'#888',font:{size:8},maxTicksLimit:6},grid:{color:'rgba(128,128,128,0.06)'},title:{display:true,text:'τ',color:'#888',font:{size:9}}},
+      y:{ticks:{color:'#888',font:{size:8}},grid:{color:'rgba(128,128,128,0.06)'},title:{display:true,text:'bit/use',color:'#888',font:{size:9}}}
+    }}
+});
+
+const powChart=new Chart(document.getElementById('pow-chart'),{
+  type:'line',
+  data:{labels:tauArr.map(t=>t.toFixed(2)),datasets:[
+    {label:'τ^e',data:tauArr.map(t=>Math.min(Math.pow(t,E),200)),borderColor:'#7F77DD',borderWidth:2,pointRadius:0,tension:0.3},
+    {label:'e^τ',data:tauArr.map(t=>Math.min(Math.pow(E,t),200)),borderColor:'#EF9F27',borderWidth:2,pointRadius:0,tension:0.3,borderDash:[5,3]},
+    {label:'交点 τ=e',data:[{x:E,y:Math.pow(E,E)}],type:'scatter',borderColor:'#D85A30',backgroundColor:'#D85A30',pointRadius:8,showLine:false},
+  ]},
+  options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:true,position:'top',labels:{boxWidth:10,font:{size:9},color:'var(--color-text-secondary)'}}},
+    scales:{
+      x:{ticks:{color:'#888',font:{size:8},maxTicksLimit:6},grid:{color:'rgba(128,128,128,0.06)'}},
+      y:{min:0,max:50,ticks:{color:'#888',font:{size:8}},grid:{color:'rgba(128,128,128,0.06)'}}
+    }}
+});
+
+const fChart=new Chart(document.getElementById('f-chart'),{
+  type:'line',
+  data:{labels:tauArr.map(t=>t.toFixed(2)),datasets:[
+    {label:'f(τ)=ln(τ)/τ',data:tauArr.map(t=>+fval(t).toFixed(5)),borderColor:'#EF9F27',borderWidth:2,pointRadius:0,tension:0.3},
+    {label:'1/e (最大値)',data:tauArr.map(()=>+(1/E).toFixed(5)),borderColor:'#D85A30',borderWidth:1,pointRadius:0,borderDash:[4,2]},
+    {label:'τ (current)',data:[{x:E,y:fval(E)}],type:'scatter',borderColor:'#1D9E75',backgroundColor:'#1D9E75',pointRadius:8,showLine:false},
+  ]},
+  options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:true,position:'top',labels:{boxWidth:10,font:{size:9},color:'var(--color-text-secondary)'}}},
+    scales:{
+      x:{ticks:{color:'#888',font:{size:8},maxTicksLimit:6},grid:{color:'rgba(128,128,128,0.06)'}},
+      y:{ticks:{color:'#888',font:{size:8}},grid:{color:'rgba(128,128,128,0.06)'}}
+    }}
+});
+
+function update(tau){
+  const nu=nuEff(tau), cc=Ccl(tau), sq=Sq(tau), fv=fval(tau);
+  const t=tau*tau;
+  document.getElementById('m-tau').textContent=tau.toFixed(4);
+  document.getElementById('m-nu').textContent=Math.min(nu,999).toFixed(4);
+  document.getElementById('m-cc').textContent=cc.toFixed(4);
+  document.getElementById('m-sq').textContent=sq.toFixed(4);
+  document.getElementById('tau-val').textContent=Math.abs(tau-E)<0.01?'e':tau.toFixed(3);
+
+  capChart.data.datasets[2].data=[{x:tau,y:cc}]; capChart.update('none');
+  powChart.data.datasets[2].data=[{x:tau,y:Math.min(Math.pow(tau,E),200)}]; powChart.update('none');
+  fChart.data.datasets[2].data=[{x:tau,y:fv}]; fChart.update('none');
+
+  const eqItems=[
+    ['τ^e = e^τ',isClose(Math.pow(tau,E),Math.pow(E,tau)),'τ=eのみ成立'],
+    ['τ·e = e·τ',true,'常に成立 (スカラー可換)'],
+    ['f(τ) = 1/e',isClose(fv,1/E),'f(t)最大点'],
+    ['ν_eff = 1',isClose(nu,1),'NS BOUNDARY'],
+    ['θ(τ) = π',isClose(PI/Math.log(tau),PI),'Langr k=90'],
+    ['M_τ^e = M_e^τ (固有値)',isClose(Math.pow(tau,E),Math.pow(E,tau)),'行列冪の等号'],
+  ];
+  document.getElementById('eq-chain').innerHTML=eqItems.map(([name,ok,note])=>
+    `<div class="row-badge"><span class="badge ${ok?'b-ok':'b-warn'}">${ok?'✓':'✗'}</span><span>${name} — ${note}</span></div>`
+  ).join('');
+
+  let regime,color;
+  if(tau<1){regime='r<1: 超高精度・未解決次元';color='#D85A30';}
+  else if(Math.abs(tau-1)<0.05){regime='r=1: NS特異点・解像度閾値';color='#1D9E75';}
+  else if(tau<E){regime='1<τ<e: 精度低下・次元展開中';color='#7F77DD';}
+  else if(Math.abs(tau-E)<0.05){regime='τ=e: BOUNDARY・自己参照固定点';color='#EF9F27';}
+  else{regime='τ>e: 低精度・M理論次元を展開';color='#378ADD';}
+
+  const dNearest=Math.round(t);
+  const dTypes=['?','t軸 Mink','x軸 Mink','y軸 Mink','z軸 Mink/4D完結',
+                'G2-d1 uint32','G2-d2 uint64','G2-d3 128bit','G2-d4 SHA256',
+                'G2-d5','G2-d6','G2-d7 M理論上限'];
+  const dtype=dNearest>=1&&dNearest<=11?dTypes[dNearest]:`d=${dNearest}`;
+
+  document.getElementById('regime-info').innerHTML=
+    `<div style="font-weight:500;font-size:12px;color:${color};margin-bottom:6px">${regime}</div>`+
+    `<div class="eq-box">t = τ² = ${t.toFixed(4)}</div>`+
+    `<div class="eq-box">a = d ≈ ${dNearest} → ${dtype}</div>`+
+    `<div class="eq-box">SNR = 1/τ² = ${(1/t).toFixed(5)}</div>`+
+    `<div class="eq-box">ΔI(量子優位) = ${(sq-cc).toFixed(4)} bit</div>`+
+    `<div class="eq-box">f(τ) = ${fv.toFixed(6)} ${isClose(fv,1/E)?'← 最大点 ✓':''}</div>`;
+}
+
+document.getElementById('tau-slider').addEventListener('input',e=>update(+e.target.value));
+update(E);
+</script>
