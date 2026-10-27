@@ -1,0 +1,84 @@
+
+<style>
+.sec{font-size:13px;font-weight:500;color:var(--color-text-secondary);margin:14px 0 6px}
+.eq{font-family:var(--font-mono);font-size:12px;background:var(--color-background-secondary);border-radius:6px;padding:6px 12px;margin:4px 0;color:var(--color-text-primary)}
+.row{display:flex;gap:8px;margin:5px 0;font-size:12px;align-items:flex-start}
+.tag{font-size:11px;padding:2px 7px;border-radius:4px;font-weight:500;white-space:nowrap;flex-shrink:0}
+.ok{background:var(--color-background-success);color:var(--color-text-success)}
+.warn{background:var(--color-background-warning);color:var(--color-text-warning)}
+.fix{background:var(--color-background-info);color:var(--color-text-info)}
+.note{font-size:11px;color:var(--color-text-secondary);line-height:1.5}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+</style>
+<h2 class="sr-only">補填検証結果：prime_cosmology.py と energy_scale_unification.docx の接続評価</h2>
+
+<div class="sec">新規発見：今回のNS/θ理論 ↔ 両ファイル理論の接続</div>
+<div class="eq">統合関係式: τ_vec = τ · e^{iπ/ln(τ)} = τ · e^{iθ(τ)}  ←  今回のθ定義がdocxのτ_vecを包含</div>
+<div class="eq">E₀の対称性: ln(E_Pl/E₀) = ln(E₀/E_H) = 70.1283  (完全一致 ✓)</div>
+
+<div class="sec">接続項目の評価 (6/10 整合、修正で 8/10 到達可能)</div>
+<div class="row"><span class="tag ok">✓ 完全</span><span>θ(τ)=π/ln(τ) ↔ docx τ_vec位相：τ^{iθ}=-1 は τe^{iΦ₂} の特殊ケース</span></div>
+<div class="row"><span class="tag ok">✓ 完全</span><span>コラッツ 3n+1 ↔ α_t=2/3：(3/2)⁻¹ = 2/3  誤差0.000000%</span></div>
+<div class="row"><span class="tag ok">✓ 完全</span><span>コラッツ n÷2 ↔ 放射優勢 α_t=1/2：係数1/2が完全一致</span></div>
+<div class="row"><span class="tag ok">✓ 完全</span><span>ζ(s=1)=∞ ↔ n(t)=1 BOUNDARY：ゼータの唯一の極と転換点が一致</span></div>
+<div class="row"><span class="tag ok">✓ 完全</span><span>E₀の幾何平均対称性：ln(E_Pl/E₀) = ln(E₀/E_H) の完全対称分割</span></div>
+<div class="row"><span class="tag ok">✓ 完全</span><span>τ_vec位相 ↔ NS粘性：n(t)=1境界でν_eff→1、位相Φ₂≠0 が整合</span></div>
+<div class="row"><span class="tag warn">△ 要修正</span><span>NS ν_eff ↔ 1/ζ(n(t))：s&lt;1でζ&lt;0 → 分配関数が非物理的。修正: |ζ(s)| または ζ(2s) を使用</span></div>
+<div class="row"><span class="tag warn">△ 要修正</span><span>分配関数 Z=ζ(n(t)) の n(t)&lt;1 体制：現在・物質優勢期でζ=-19.8 → 物理的に無効</span></div>
+<div class="row"><span class="tag warn">△ 注意</span><span>リーマン零点11個 ↔ 11次元：G2/Mink比0.595≠7/4=1.75。対応は恣意的</span></div>
+<div class="row"><span class="tag warn">△ 未確立</span><span>ψ=m^{1/4}不動点 ↔ ν_eff特異点：代数的接続の根拠が現時点で未確立</span></div>
+
+<div class="sec" style="margin-top:16px">重要な修正提案（新発見）</div>
+<div class="grid">
+  <div>
+    <div class="note" style="font-weight:500;margin-bottom:4px">問題：ζ(s)がs&lt;1で負値</div>
+    <div class="eq">ζ(0.951) = −19.83  ← 非物理</div>
+    <div class="eq">修正A: |ζ(s)|  = 19.83  ✓</div>
+    <div class="eq">修正B: ζ(2s)   = 1.747  ✓</div>
+    <div class="note">修正Bはζの函数等式と整合し物理的に自然</div>
+  </div>
+  <div>
+    <div class="note" style="font-weight:500;margin-bottom:4px">新規接続：NS ↔ docx</div>
+    <div class="eq">ν_eff(τ) = 1/ln(τ) = 0.0473</div>
+    <div class="eq">1/|ζ(n(t))| = 1/19.83 = 0.0504</div>
+    <div class="note">比 = 0.939（同オーダー、s&lt;1修正後に精密化可能）</div>
+    <div class="note" style="margin-top:4px">τ=1（NS特異点）≠ n(t)=1（F-B境界）は別スケール。両者は独立に正当</div>
+  </div>
+</div>
+
+<div class="sec">τ=1特異点 vs n(t)=1境界 — 2つの特異点構造の比較</div>
+<div style="position:relative;height:130px"><canvas id="sing_chart" role="img" aria-label="2つの特異点構造の比較"></canvas></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+const rs=[], nus=[], zs=[];
+for(let rv=0.1;rv<=4;rv+=0.05){
+  if(Math.abs(rv-1.0)<0.04) continue;
+  rs.push(+rv.toFixed(2));
+  nus.push(Math.min(1/Math.abs(Math.log(rv)),20));
+}
+const ns2=[],zabs=[];
+for(let sv=0.5;sv<=2.5;sv+=0.05){
+  if(Math.abs(sv-1.0)<0.04) continue;
+  ns2.push(+sv.toFixed(2));
+  // ζの絶対値の近似
+  let za;
+  if(sv>1) za=Math.min(1/(sv-1)+0.577,20);
+  else za=Math.min(1/(1-sv)+0.577,20);
+  zabs.push(+za.toFixed(3));
+}
+new Chart(document.getElementById('sing_chart'),{
+  type:'line',
+  data:{datasets:[
+    {label:'ν_eff(r)=1/|ln r|  [NS特異点 r=1]',data:rs.map((r,i)=>({x:r,y:nus[i]})),borderColor:'#EF9F27',borderWidth:2,pointRadius:0,tension:0.3,xAxisID:'x1',yAxisID:'y'},
+    {label:'|ζ(s)|近似 [BOUNDARY s=1]',data:ns2.map((s,i)=>({x:s,y:zabs[i]})),borderColor:'#1D9E75',borderWidth:2,pointRadius:0,tension:0.3,xAxisID:'x2',yAxisID:'y',borderDash:[5,3]},
+  ]},
+  options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:true,position:'top',labels:{boxWidth:10,font:{size:10},color:'var(--color-text-secondary)'}}},
+    scales:{
+      x1:{type:'linear',position:'bottom',min:0,max:4,title:{display:true,text:'r=τ (NS軸)',color:'#EF9F27',font:{size:9}},ticks:{color:'#888',font:{size:8}},grid:{color:'rgba(128,128,128,0.06)'}},
+      x2:{type:'linear',position:'top',min:0,max:4,title:{display:true,text:'s=n(t) (宇宙論軸)',color:'#1D9E75',font:{size:9}},ticks:{color:'#888',font:{size:8}},grid:{display:false}},
+      y:{min:0,max:15,ticks:{color:'#888',font:{size:8}},grid:{color:'rgba(128,128,128,0.08)'}}
+    }}
+});
+</script>
