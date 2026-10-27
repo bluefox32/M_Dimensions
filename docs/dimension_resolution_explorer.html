@@ -1,0 +1,151 @@
+
+<h2 class="sr-only">次元解像度エクスプローラー：M理論11次元をインタラクティブに探索</h2>
+<style>
+.metric{background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:8px 12px;font-size:12px;color:var(--color-text-secondary)}
+.metric span{display:block;font-size:18px;font-weight:500;color:var(--color-text-primary);margin-top:2px}
+.dim-bar{height:28px;border-radius:4px;display:flex;align-items:center;padding:0 8px;margin:3px 0;font-size:11px;transition:width 0.4s,background 0.4s}
+</style>
+
+<div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-bottom:12px">
+  <div class="metric">解像度パラメータ a<span id="m-a">—</span></div>
+  <div class="metric">ノルム r = √a<span id="m-r">—</span></div>
+  <div class="metric">有効次元 N_eff<span id="m-n">—</span></div>
+  <div class="metric">データ型<span id="m-d" style="font-size:13px">—</span></div>
+</div>
+
+<div style="display:flex;gap:16px;align-items:center;margin-bottom:16px;font-size:13px;color:var(--color-text-secondary)">
+  <label>次元 d (= a)</label>
+  <input type="range" id="dim-slider" min="1" max="11" step="1" value="4" style="flex:1">
+  <span id="dim-val" style="font-weight:500;min-width:20px;text-align:right;color:var(--color-text-primary)">4</span>
+</div>
+
+<div style="margin-bottom:14px">
+  <div style="font-size:11px;color:var(--color-text-secondary);margin-bottom:6px">M理論11次元の解像度分布（r=√d）</div>
+  <div id="bar-container"></div>
+</div>
+
+<div style="position:relative;height:200px;margin-bottom:10px">
+  <canvas id="res-chart" role="img" aria-label="解像度パラメータrと次元dの関係"></canvas>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:11px;color:var(--color-text-secondary)">
+  <div style="background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:10px">
+    <div style="font-weight:500;margin-bottom:6px;color:var(--color-text-primary)">N不変量との接続</div>
+    <div id="n-inv-info">—</div>
+  </div>
+  <div style="background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:10px">
+    <div style="font-weight:500;margin-bottom:6px;color:var(--color-text-primary)">Δt代数との対応</div>
+    <div id="dt-info">—</div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+const phi = (1+Math.sqrt(5))/2;
+const PI = Math.PI;
+const r_inv = Math.pow(phi,-0.25) * Math.pow(PI,-1);
+
+const dims = [
+  {d:1, name:'t 時間軸',   group:'Mink', type:'境界 r=1',    color:'#D85A30'},
+  {d:2, name:'x 空間1',    group:'Mink', type:'bit/bool',    color:'#D85A30'},
+  {d:3, name:'y 空間2',    group:'Mink', type:'uint8',       color:'#D85A30'},
+  {d:4, name:'z 空間3',    group:'Mink', type:'uint8+ / 4D完結', color:'#D85A30'},
+  {d:5, name:'G2-d1',      group:'G2',   type:'uint32',      color:'#7F77DD'},
+  {d:6, name:'G2-d2',      group:'G2',   type:'uint64',      color:'#7F77DD'},
+  {d:7, name:'G2-d3',      group:'G2',   type:'128bit',      color:'#7F77DD'},
+  {d:8, name:'G2-d4',      group:'G2',   type:'SHA-256',     color:'#BA7517'},
+  {d:9, name:'G2-d5',      group:'G2',   type:'512bit',      color:'#7F77DD'},
+  {d:10,name:'G2-d6',      group:'G2',   type:'1024bit',     color:'#7F77DD'},
+  {d:11,name:'G2-d7 (最大)',group:'G2',   type:'2048bit / M理論上限', color:'#7F77DD'},
+];
+
+const maxR = Math.sqrt(11);
+
+function buildBars(activeDim) {
+  const ct = document.getElementById('bar-container');
+  ct.innerHTML = '';
+  dims.forEach(({d,name,type,color})=>{
+    const r = Math.sqrt(d);
+    const pct = Math.round(r/maxR*100);
+    const isActive = d===activeDim;
+    const bar = document.createElement('div');
+    bar.className='dim-bar';
+    bar.style.width = pct+'%';
+    bar.style.background = isActive ? color : color+'55';
+    bar.style.color = isActive ? '#fff' : 'var(--color-text-secondary)';
+    bar.style.border = isActive ? `1.5px solid ${color}` : '0.5px solid transparent';
+    bar.style.fontWeight = isActive ? '500' : '400';
+    bar.innerHTML = `d=${d} ${name}  r=${r.toFixed(3)}  ${type}`;
+    ct.appendChild(bar);
+  });
+}
+
+function update(d) {
+  const r = Math.sqrt(d);
+  const a = d;
+  const Neff = 16 + 2*Math.log2(r_inv);
+  const dim = dims[d-1];
+  document.getElementById('m-a').textContent = a.toFixed(0);
+  document.getElementById('m-r').textContent = r.toFixed(4);
+  document.getElementById('m-n').textContent = (Neff + 2*Math.log2(r)).toFixed(3);
+  document.getElementById('m-d').textContent = dim.type;
+  document.getElementById('dim-val').textContent = d;
+  buildBars(d);
+
+  const r_ratio = r / r_inv;
+  const theta_r = Math.acos(r_inv)*180/PI;
+  document.getElementById('n-inv-info').innerHTML =
+    `r_inv = φ^(-1/4)π^(-1) = ${r_inv.toFixed(5)}<br>` +
+    `r(d=${d}) / r_inv = ${r_ratio.toFixed(3)}<br>` +
+    `θ(r_inv) = ${theta_r.toFixed(2)}°<br>` +
+    `ΔN = ${(-2*Math.log2(r_inv)).toFixed(3)} bit 損失`;
+
+  const sqrt_dt = r;
+  const dt = a;
+  const dtau = r - 1;
+  const stau = r + 1;
+  document.getElementById('dt-info').innerHTML =
+    `Δt = a = d = ${dt}<br>` +
+    `r = √Δt = √d = ${sqrt_dt.toFixed(4)}<br>` +
+    `ΔM·ΣM = Δt·I = ${dt}·I<br>` +
+    `τ枝: ±${sqrt_dt.toFixed(4)}`;
+
+  chart.data.datasets[1].data = [{x:r,y:a}];
+  chart.update('none');
+}
+
+const ctx = document.getElementById('res-chart');
+const xs = Array.from({length:110},(_,i)=>(i+1)/10);
+const chart = new Chart(ctx,{
+  type:'scatter',
+  data:{datasets:[
+    {label:'r = √d (M理論次元)',
+     data:dims.map(({d})=>({x:Math.sqrt(d),y:d})),
+     borderColor:'#7F77DD', backgroundColor:'#7F77DD44',
+     pointRadius:6, pointStyle:'circle', showLine:false},
+    {label:'選択中の次元',
+     data:[{x:2,y:4}],
+     borderColor:'#D85A30', backgroundColor:'#D85A30',
+     pointRadius:10, pointStyle:'rectRot', showLine:false},
+    {label:'r=1 境界 (NS特異点)',
+     data:[{x:1,y:0},{x:1,y:12}],
+     borderColor:'#1D9E75', backgroundColor:'transparent',
+     showLine:true, pointRadius:0, borderDash:[4,3], borderWidth:1.5},
+    {label:'r* = e^(6/π²) = 1.837',
+     data:[{x:Math.exp(6/PI/PI),y:0},{x:Math.exp(6/PI/PI),y:12}],
+     borderColor:'#EF9F27', backgroundColor:'transparent',
+     showLine:true, pointRadius:0, borderDash:[2,4], borderWidth:1.5},
+  ]},
+  options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:false}},
+    scales:{
+      x:{min:0.8,max:3.5,title:{display:true,text:'r = √d (解像度ノルム)',color:'#888',font:{size:10}},
+         ticks:{color:'#888',font:{size:9}},grid:{color:'rgba(128,128,128,0.08)'}},
+      y:{min:0,max:12,title:{display:true,text:'d (M理論次元)',color:'#888',font:{size:10}},
+         ticks:{color:'#888',font:{size:9},stepSize:1},grid:{color:'rgba(128,128,128,0.08)'}}
+    }}
+});
+
+document.getElementById('dim-slider').addEventListener('input',e=>update(+e.target.value));
+update(4);
+</script>
